@@ -7,8 +7,17 @@ import termios
 import tty
 import pyfiglet
 import shutil
-
-
+import atexit
+def hideCursor():
+	sys.stdout.write("\033[?25l")
+	sys.stdout.flush()
+def showCursor():
+	clearConsole()
+	sys.stdout.write("\033[?25h")
+	sys.stdout.flush()
+atexit.register(showCursor)
+hideCursor()
+print('\033[2J\033[H', end='', flush=True)
 fallInterval = 0.5
 nextFallTime = time.time() + fallInterval
 # --- Module-level state (initialized on first call) ---
@@ -72,7 +81,8 @@ def getKey():
 
 def clearConsole():
 	#   os.system('cls' if os.name == 'nt' else 'clear')
-	print('\033[2J\033[H', end='', flush=True)
+	# print('\033[2J\033[H', end='', flush=True)
+	print('\033[H', end='', flush=True)
 
 def canMove(rowDelta, colDelta):
 	global pieceLoc, gamefield, pieceLocations, blankStr
@@ -105,18 +115,18 @@ gamefield = [
 	for _ in range(20)
 ]
 pieceLoc = []
+pieces = {
+	1: [[0,3],[0,4],[0,5],[0,6]],  # I
+	2: [[0,4],[0,5],[1,4],[1,5]],  # O
+	3: [[0,4],[0,5],[0,6],[1,5]],  # T
+	4: [[0,5],[0,6],[1,4],[1,5]],  # S
+	5: [[0,4],[0,5],[1,5],[1,6]],  # Z
+	6: [[0,4],[1,4],[1,5],[1,6]],  # J
+	7: [[0,6],[1,4],[1,5],[1,6]],  # L
+}
 def spawnNewPiece():
-	global pieceLoc, gamefield, gameOver, pivotOffset, pivots, current, nextPiece
-	
-	pieces = {
-		1: [[0,3],[0,4],[0,5],[0,6]],  # I
-		2: [[0,4],[0,5],[1,4],[1,5]],  # O
-		3: [[0,4],[0,5],[0,6],[1,5]],  # T
-		4: [[0,5],[0,6],[1,4],[1,5]],  # S
-		5: [[0,4],[0,5],[1,5],[1,6]],  # Z
-		6: [[0,4],[1,4],[1,5],[1,6]],  # J
-		7: [[0,6],[1,4],[1,5],[1,6]],  # L
-	}
+	global pieceLoc, gamefield, gameOver, pivotOffset, pivots, current, nextPiece, pieces
+
 	current = nextPiece
 	nextPiece = random.randint(1,7)
 	pieceLoc = pieces[current]
@@ -135,8 +145,8 @@ def spawnNewPiece():
 			return
 
 		
-	for r, c in pieceLoc:
-		gamefield[r][c] = cubeStr
+	# for r, c in pieceLoc:
+	# 	gamefield[r][c] = cubeStr
 
 def type(text, delay=0.05):
 	for char in text:
@@ -169,33 +179,51 @@ def getGhost():
 		ghost = [[r+1, c] for r, c in ghost]
 	return ghost
 
-def getRotated(clockwise=True):
-    # pivot = first block (no offset)
-    pivotRow, pivotCol = pieceLoc[0]
+# def getRotated(clockwise=True):
+#     # pivot = first block (no offset)
+#     pivotRow, pivotCol = pieceLoc[0]
     
-    if clockwise:
-        return [
-            [pivotRow + (col - pivotCol), pivotCol - (row - pivotRow)]
-            for row, col in pieceLoc
-        ]
+#     if clockwise:
+#         return [
+#             [pivotRow + (col - pivotCol), pivotCol - (row - pivotRow)]
+#             for row, col in pieceLoc
+#         ]
+#     else:
+#         return [
+#             [pivotRow - (col - pivotCol), pivotCol + (row - pivotRow)]
+#             for row, col in pieceLoc
+#         ]
+
+def getRotated(clockwise=True):
+    global rotationState, pieceLoc, current
+    if current in pieceStates:
+        # new logic
+        nextState = (rotationState + 1) % 4 if clockwise else (rotationState - 1) % 4
+        spawnCoords = pieceStates[current][rotationState]
+        nextCoords = pieceStates[current][nextState]
+        dr = pieceLoc[0][0] - spawnCoords[0][0]
+        dc = pieceLoc[0][1] - spawnCoords[0][1]
+        return [[r + dr, c + dc] for r, c in nextCoords]
     else:
-        return [
-            [pivotRow - (col - pivotCol), pivotCol + (row - pivotRow)]
-            for row, col in pieceLoc
-        ]
+        # old logic for J, L, S, Z, O
+        pivotRow, pivotCol = pieceLoc[0]
+        if clockwise:
+            return [[pivotRow + (c - pivotCol), pivotCol - (r - pivotRow)] for r, c in pieceLoc]
+        else:
+            return [[pivotRow - (c - pivotCol), pivotCol + (r - pivotRow)] for r, c in pieceLoc]
+			
 def gravity():
-	global now, nextFallTime, pieceLoc, gamefield, cubeStr, rowsToClear, blankStr
-	global linesCleared, score, level, fallInterval, softdropCells
+	global now, nextFallTime, pieceLoc, gamefield, cubeStr, rowsToClear, blankStr  # noqa: PLW0602
+	global linesCleared, score, level, fallInterval, softdropCells  # noqa: PLW0602
 	# remove ghost from globals
 	
-	if now >= nextFallTime:
-		if canMove(1, 0):
-			pieceLoc = [[row + 1, col] for row, col in pieceLoc]
-			nextFallTime = now + fallInterval
+	if now >= nextFallTime and canMove(1, 0):
+		pieceLoc = [[row + 1, col] for row, col in pieceLoc]
+		nextFallTime = now + fallInterval
 def lockPiece():
-	global pieceLoc, gamefield, cubeStr, blankStr
+	global pieceLoc, gamefield, cubeStr, blankStr, canHold  # noqa: PLW0602
 	global linesCleared, score, level, fallInterval, softdropCells
-	global nextFallTime, current, nextPiece, pivotOffset, gameOver
+	global nextFallTime, current, nextPiece, pivotOffset, gameOver  # noqa: PLW0602
 	
 
 
@@ -225,6 +253,7 @@ def lockPiece():
 	spawnNewPiece()
 	nextFallTime = time.time() + fallInterval
 	softdropCells = 0
+	canHold = True
 pivots = {
 	1: [0, 4],   # I - 2nd block (index 1)
 	2: [0, 4],   # O - top-left (doesn't visually rotate)
@@ -246,6 +275,23 @@ maxMove = 15
 floorTime = 0
 floorMove = 0
 onFloor = False
+holdPiece = None
+canHold = True
+rotationState = 0
+pieceStates = {
+    1: [  # I (4x4 box, spawns at row 0, cols 3-6)
+        [[0,3],[0,4],[0,5],[0,6]],  # 0°  spawn
+        [[0,4],[1,4],[2,4],[3,4]],  # 90° right
+        [[3,3],[3,4],[3,5],[3,6]],  # 180°
+        [[0,5],[1,5],[2,5],[3,5]],  # 270° left
+    ],
+    3: [  # T (3x3 box, spawns at row 0, cols 4-6)
+        [[0,4],[0,5],[0,6],[1,5]],  # 0°  spawn (T up)
+        [[0,5],[1,4],[1,5],[2,5]],  # 90° right (T right)
+        [[1,4],[1,5],[1,6],[0,5]],  # 180°    (T down)
+        [[0,5],[1,5],[1,6],[2,5]],  # 270° left (T left)
+    ],
+}
 while not gameOver:
 	now = time.time()
 	# Clear
@@ -300,6 +346,22 @@ while not gameOver:
 
 	if K == "s":
 		linesCleared = int(input())
+	if K in ("c", "z") and canHold:
+		for row, col in pieceLoc:
+			if gamefield[row][col] == cubeStr:
+				gamefield[row][col] = blankStr
+		if holdPiece is None:
+			holdPiece = current
+			spawnNewPiece()
+		else:
+			holdPiece, current = current, holdPiece
+			pieceLoc = pieces[current]
+			pivotLocal = pivots[current]
+			pivotOffset = [pivotLocal[0] - pieceLoc[0][0], pivotLocal[1] - pieceLoc[0][1]]
+
+		canHold = False
+		floorTime = time.time()
+		floorMove = 0
 	# Gravity
 	gravity()
 	# Piece Lock
@@ -335,21 +397,30 @@ while not gameOver:
 			gamefield[row][col] = blankStr
 	print(f"Score: {score}  Lines: {linesCleared}  Level: {level}")	
 	nextShapes = {
-		1: [[0,1],[0,2],[0,3],[0,4]],
-		2: [[0,1],[0,2],[1,1],[1,2]],
-		3: [[0,1],[0,2],[0,3],[1,2]],
-		4: [[0,2],[0,3],[1,1],[1,2]],
-		5: [[0,1],[0,2],[1,2],[1,3]],
-		6: [[0,1],[1,1],[1,2],[1,3]],
-		7: [[0,3],[1,1],[1,2],[1,3]],
+		1: [[0,1],[0,2],[0,3],[0,4]],      # I  (cols 1-4)
+		2: [[0,2],[0,3],[1,2],[1,3]],      # O  (centered)
+		3: [[0,1],[0,2],[0,3],[1,2]],      # T
+		4: [[0,2],[0,3],[1,1],[1,2]],      # S
+		5: [[0,1],[0,2],[1,2],[1,3]],      # Z
+		6: [[0,1],[1,1],[1,2],[1,3]],      # J
+		7: [[0,3],[1,1],[1,2],[1,3]],      # L
 	}
 	print("NEXT: ")
 	for r in range(2):
 		line = ""
 		for c in range(6):
-			line += cubeStr if [r,c] in nextShapes[nextPiece] else " "
+			line += cubeStr if [r,c] in nextShapes[nextPiece] else "  "
 		print(line)
-
+	print("HOLD: ")
+	if holdPiece:
+		for r in range(2):
+			line = ""
+			for c in range(6):
+				line += cubeStr if [r,c] in nextShapes[holdPiece] else "  "
+			print(line)
+	else:
+		print("      ")
+		print("      ")
 	# time.sleep(0.016)
 	time.sleep(.01)
 

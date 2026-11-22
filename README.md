@@ -12,6 +12,8 @@ Tetris game I made using Python
 | Space | Hard drop (2 pts/cell) |
 | C / Z | Hold piece |
 | ESC | Pause / Resume |
+# Notes
+I tried implementing SRS but I couldn't, so I had help from AI. The scoring is also based on NES scoring.
 # Images
 ![gameplay image](https://raw.githubusercontent.com/George-LJH/tetris/refs/heads/master/img1.png)
 ![gameplay image](https://raw.githubusercontent.com/George-LJH/tetris/refs/heads/master/img2.png)

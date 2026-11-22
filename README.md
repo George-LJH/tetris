@@ -13,7 +13,7 @@ Tetris game I made using Python
 | C / Z | Hold piece |
 | ESC | Pause / Resume |
 # Notes
-I tried implementing SRS but I couldn't, so I had help from AI. The scoring is also based on NES scoring.
+I tried implementing SRS but I couldn't, so I had help from AI. The scoring is also based on NES scoring. This might or might not work, I made the executable on Ubuntu 20.04 on killerconda.  
 # Images
 ![gameplay image](https://raw.githubusercontent.com/George-LJH/tetris/refs/heads/master/img1.png)
 ![gameplay image](https://raw.githubusercontent.com/George-LJH/tetris/refs/heads/master/img2.png)

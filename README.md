@@ -12,3 +12,7 @@ Tetris game I made using Python
 | Space | Hard drop (2 pts/cell) |
 | C / Z | Hold piece |
 | ESC | Pause / Resume |
+# Images
+![gameplay image](https://raw.githubusercontent.com/George-LJH/tetris/refs/heads/master/img1.png)
+![gameplay image](https://raw.githubusercontent.com/George-LJH/tetris/refs/heads/master/img2.png)
+![gameplay image](https://raw.githubusercontent.com/George-LJH/tetris/refs/heads/master/img3.png)

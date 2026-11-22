@@ -19,3 +19,5 @@ There are a lot of useless code on here, but I didn't have time to correct it.
 ![gameplay image](https://raw.githubusercontent.com/George-LJH/tetris/refs/heads/master/img1.png)
 ![gameplay image](https://raw.githubusercontent.com/George-LJH/tetris/refs/heads/master/img2.png)
 ![gameplay image](https://raw.githubusercontent.com/George-LJH/tetris/refs/heads/master/img3.png)
+
+# Thank you for trying this out!

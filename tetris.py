@@ -1,13 +1,24 @@
+import atexit
 import os
 import random
-import sys
-import time
 import select
-import termios
-import tty
-import pyfiglet
 import shutil
-import atexit
+import sys
+import termios
+import time
+import tty
+from typing import Any
+
+import pyfiglet
+
+bag = []
+def getPiece():
+    global bag
+    if not bag:
+        bag = list(range(1,8))
+        random.shuffle(bag)
+    return bag.pop()
+paused = False
 def hideCursor():
 	sys.stdout.write("\033[?25l")
 	sys.stdout.flush()
@@ -114,26 +125,26 @@ gamefield = [
 	[blankStr for _ in range(10)]
 	for _ in range(20)
 ]
-pieceLoc = []
-pieces = {
-	1: [[0,3],[0,4],[0,5],[0,6]],  # I
-	2: [[0,4],[0,5],[1,4],[1,5]],  # O
-	3: [[0,4],[0,5],[0,6],[1,5]],  # T
-	4: [[0,5],[0,6],[1,4],[1,5]],  # S
-	5: [[0,4],[0,5],[1,5],[1,6]],  # Z
-	6: [[0,4],[1,4],[1,5],[1,6]],  # J
-	7: [[0,6],[1,4],[1,5],[1,6]],  # L
+pieceLoc: list[Any] = []
+pieces: dict[int, list[list[int]]] = {
+    1: [[0,3],[0,4],[0,5],[0,6]],  # I
+    2: [[0,4],[0,5],[1,4],[1,5]],  # O
+    3: [[0,4],[0,5],[0,6],[1,5]],  # T
+    4: [[0,4],[0,5],[1,5],[1,6]],  # S
+    5: [[0,5],[0,6],[1,4],[1,5]],  # Z
+    6: [[0,4],[1,4],[1,5],[1,6]],  # J
+    7: [[0,6],[1,4],[1,5],[1,6]],  # L
 }
 def spawnNewPiece():
 	global pieceLoc, gamefield, gameOver, pivotOffset, pivots, current, nextPiece, pieces
 
 	current = nextPiece
-	nextPiece = random.randint(1,7)
+	nextPiece = getPiece()
 	pieceLoc = pieces[current]
 		# pieceLoc = [[0,4], [0,5]]
 
 
-	pivotLocal = pivots[current]
+	pivotLocal: list[int] = pivots[current]
 	pivotOffset = [
 		pivotLocal[0] - pieceLoc[0][0],
 		pivotLocal[1] - pieceLoc[0][1]
@@ -147,7 +158,7 @@ def spawnNewPiece():
 		
 	# for r, c in pieceLoc:
 	# 	gamefield[r][c] = cubeStr
-
+	rotationState = 0
 def type(text, delay=0.05):
 	for char in text:
 		print(char, end='', flush=True)
@@ -156,7 +167,6 @@ def type(text, delay=0.05):
 
 
 def printCenterLargeReveal(text, font="standard", line_delay=0.05, **kwargs):
-	import shutil, pyfiglet
 	terminal_size = shutil.get_terminal_size()
 	width = terminal_size.columns
 	height = terminal_size.lines
@@ -193,25 +203,14 @@ def getGhost():
 #             [pivotRow - (col - pivotCol), pivotCol + (row - pivotRow)]
 #             for row, col in pieceLoc
 #         ]
-
 def getRotated(clockwise=True):
-    global rotationState, pieceLoc, current
-    if current in pieceStates:
-        # new logic
-        nextState = (rotationState + 1) % 4 if clockwise else (rotationState - 1) % 4
-        spawnCoords = pieceStates[current][rotationState]
-        nextCoords = pieceStates[current][nextState]
-        dr = pieceLoc[0][0] - spawnCoords[0][0]
-        dc = pieceLoc[0][1] - spawnCoords[0][1]
-        return [[r + dr, c + dc] for r, c in nextCoords]
+    pivotRow, pivotCol = pieceLoc[0]
+    if clockwise:
+        return [[pivotRow + (c - pivotCol), pivotCol - (r - pivotRow)] for r, c in pieceLoc]
     else:
-        # old logic for J, L, S, Z, O
-        pivotRow, pivotCol = pieceLoc[0]
-        if clockwise:
-            return [[pivotRow + (c - pivotCol), pivotCol - (r - pivotRow)] for r, c in pieceLoc]
-        else:
-            return [[pivotRow - (c - pivotCol), pivotCol + (r - pivotRow)] for r, c in pieceLoc]
-			
+        return [[pivotRow - (c - pivotCol), pivotCol + (r - pivotRow)] for r, c in pieceLoc]
+
+
 def gravity():
 	global now, nextFallTime, pieceLoc, gamefield, cubeStr, rowsToClear, blankStr  # noqa: PLW0602
 	global linesCleared, score, level, fallInterval, softdropCells  # noqa: PLW0602
@@ -263,7 +262,7 @@ pivots = {
 	6: [1, 5],   # J - 3rd block (center of bottom row)
 	7: [1, 5],   # L - 3rd block (center of bottom row)
 }
-nextPiece = random.randint(1,7)
+nextPiece = getPiece()
 spawnNewPiece()
 gameOver = False
 level = 1
@@ -278,19 +277,30 @@ onFloor = False
 holdPiece = None
 canHold = True
 rotationState = 0
-pieceStates = {
-    1: [  # I (4x4 box, spawns at row 0, cols 3-6)
-        [[0,3],[0,4],[0,5],[0,6]],  # 0°  spawn
-        [[0,4],[1,4],[2,4],[3,4]],  # 90° right
-        [[3,3],[3,4],[3,5],[3,6]],  # 180°
-        [[0,5],[1,5],[2,5],[3,5]],  # 270° left
-    ],
-    3: [  # T (3x3 box, spawns at row 0, cols 4-6)
-        [[0,4],[0,5],[0,6],[1,5]],  # 0°  spawn (T up)
-        [[0,5],[1,4],[1,5],[2,5]],  # 90° right (T right)
-        [[1,4],[1,5],[1,6],[0,5]],  # 180°    (T down)
-        [[0,5],[1,5],[1,6],[2,5]],  # 270° left (T left)
-    ],
+
+# SRS Wall Kick Data: piece -> (from_state, to_state) -> [(dr, dc), ...]
+SRS_KICKS: dict[int | str, dict[tuple[int, int], list[tuple[int, int]]]] = {
+    1: {  # I-piece
+        (0, 1): [(0, 0), (-2, 0), (1, 0), (-2, -1), (1, 2)],
+        (1, 0): [(0, 0), (2, 0), (-1, 0), (2, 1), (-1, -2)],
+        (1, 2): [(0, 0), (-1, 0), (2, 0), (-1, 2), (2, -1)],
+        (2, 1): [(0, 0), (1, 0), (-2, 0), (1, -2), (-2, 1)],
+        (2, 3): [(0, 0), (2, 0), (-1, 0), (2, 1), (-1, -2)],
+        (3, 2): [(0, 0), (-2, 0), (1, 0), (-2, -1), (1, 2)],
+        (3, 0): [(0, 0), (1, 0), (-2, 0), (1, -2), (-2, 1)],
+        (0, 3): [(0, 0), (-1, 0), (2, 0), (-1, 2), (2, -1)],
+    },
+    # J, L, T, S, Z all share this table (pieces 2-7)
+    'JLTSZ': {
+        (0, 1): [(0, 0), (-1, 0), (-1, 1), (0, -2), (-1, -2)],
+        (1, 0): [(0, 0), (1, 0), (1, -1), (0, 2), (1, 2)],
+        (1, 2): [(0, 0), (1, 0), (1, -1), (0, 2), (1, 2)],
+        (2, 1): [(0, 0), (-1, 0), (-1, 1), (0, -2), (-1, -2)],
+        (2, 3): [(0, 0), (-1, 0), (-1, 1), (0, -2), (-1, -2)],
+        (3, 2): [(0, 0), (1, 0), (1, -1), (0, 2), (1, 2)],
+        (3, 0): [(0, 0), (1, 0), (1, -1), (0, 2), (1, 2)],
+        (0, 3): [(0, 0), (-1, 0), (-1, 1), (0, -2), (-1, -2)],
+    }
 }
 while not gameOver:
 	now = time.time()
@@ -316,17 +326,22 @@ while not gameOver:
 			floorTime = time.time()
 			floorMove += 1
 
-	if K == "UP" and current != 2:
+	if K == "UP":
 		candidate = getRotated()
-		for kick in [0, -1, 1, -2, 2]:
-			kicked = [[r, c + kick] for r, c in candidate]
+		nextState = (rotationState + 1) % 4
+		key = (rotationState, nextState)
+		table = SRS_KICKS[1] if current == 1 else SRS_KICKS['JLTSZ']
+		kicks = table[key]
+		
+		for dr, dc in kicks:
+			kicked = [[r + dr, c + dc] for r, c in candidate]
 			if all(0 <= c < 10 and 0 <= r < 20 and gamefield[r][c] == blankStr for r, c in kicked):
 				pieceLoc = kicked
+				rotationState = nextState
 				if onFloor:
 					floorTime = time.time()
 					floorMove += 1
 				break
-
 	if K == "DOWN":
 		if canMove(1, 0):
 			pieceLoc = [[row + 1, col] for row, col in pieceLoc]
@@ -356,12 +371,16 @@ while not gameOver:
 		else:
 			holdPiece, current = current, holdPiece
 			pieceLoc = pieces[current]
-			pivotLocal = pivots[current]
-			pivotOffset = [pivotLocal[0] - pieceLoc[0][0], pivotLocal[1] - pieceLoc[0][1]]
 
 		canHold = False
-		floorTime = time.time()
+		floorTime: float = time.time()
 		floorMove = 0
+	if K == '\x1b':
+		paused: bool = not paused
+		continue
+	if paused:
+		time.sleep(0.1)
+		continue
 	# Gravity
 	gravity()
 	# Piece Lock
@@ -396,12 +415,12 @@ while not gameOver:
 		if gamefield[row][col] == ghostPiece: 
 			gamefield[row][col] = blankStr
 	print(f"Score: {score}  Lines: {linesCleared}  Level: {level}")	
-	nextShapes = {
+	nextShapes: dict[int, list[list[int]]] = {
 		1: [[0,1],[0,2],[0,3],[0,4]],      # I  (cols 1-4)
 		2: [[0,2],[0,3],[1,2],[1,3]],      # O  (centered)
 		3: [[0,1],[0,2],[0,3],[1,2]],      # T
-		4: [[0,2],[0,3],[1,1],[1,2]],      # S
-		5: [[0,1],[0,2],[1,2],[1,3]],      # Z
+		5: [[0,2],[0,3],[1,1],[1,2]],      # S
+		4: [[0,1],[0,2],[1,2],[1,3]],      # Z
 		6: [[0,1],[1,1],[1,2],[1,3]],      # J
 		7: [[0,3],[1,1],[1,2],[1,3]],      # L
 	}

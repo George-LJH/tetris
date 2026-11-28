@@ -1,8 +1,12 @@
 Tetris game I made using Python
+# Why?
+I made this as a fun challenge and also because I have always wanted to make Tetris, along with a few other projects. I also saw this as a good opportunity to learn how to make games in the Terminal.
 # Requirements
 * Pyfiglet
 * Python3
-* Ubuntu 20.04+(For App)
+* Ubuntu 24.04+(For App)
+# Installation
+Check the releases tab
 # Controls
 | Key | Action |
 |-----|--------|
@@ -20,4 +24,3 @@ There are a lot of useless code on here, but I didn't have time to correct it.
 ![gameplay image](https://raw.githubusercontent.com/George-LJH/tetris/refs/heads/master/img2.png)
 ![gameplay image](https://raw.githubusercontent.com/George-LJH/tetris/refs/heads/master/img3.png)
 
-# Thank you for trying this out!
